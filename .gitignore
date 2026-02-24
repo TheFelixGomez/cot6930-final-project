@@ -1,0 +1,138 @@
+
+# ================================
+# Python
+# ================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+*.whl
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# pytest / coverage
+.pytest_cache/
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+
+# mypy / type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+
+# Distribution / packaging
+MANIFEST
+
+# Logs
+*.log
+logs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Spyder
+.spyderproject.cfg
+.spyproject
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# ================================
+# Docker
+# ================================
+docker-compose.override.yml
+.docker/
+*.dockerignore
+
+# Docker volumes / data
+docker/data/
+docker/volumes/
+
+# ================================
+# Kafka
+# ================================
+kafka-logs/
+kafka/data/
+kafka/logs/
+zookeeper/
+zookeeper-data/
+zookeeper-logs/
+*.kafka
+/tmp/kafka-logs/
+/tmp/zookeeper/
+
+# ================================
+# Environment & Secrets
+# ================================
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+secrets/
+config/local_settings.py
+
+# ================================
+# OS
+# ================================
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+
+# ================================
+# Misc
+# ================================
+*.bak
+*.swp
+*.swo
+*.tmp
+*.pid
+*.seed
+*.pid.lock
+*.gz
+*.zip
+*.tar
+*.rar
+data/
+output/
+results/
+models/
+checkpoints/
+

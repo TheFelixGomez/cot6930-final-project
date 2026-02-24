@@ -1,0 +1,10 @@
+[project]
+name = "cot6930-final-project"
+version = "0.1.0"
+description = "A final project for COT6930: Artificial Intelligence & Machine Learning In Production"
+authors = [
+    { name = "Felix Gomez", email = "felix@felixgomez.com" }
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
