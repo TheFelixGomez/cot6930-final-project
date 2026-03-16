@@ -2,7 +2,7 @@ name: Build and Publish Docker Image
 
 on:
   push:
-    branches: ['main', 'ci/dockerize'] # TODO: remove after testing
+    branches: ['main']
   workflow_dispatch: # For manually click "Run workflow" in GitHub
 
 jobs:
