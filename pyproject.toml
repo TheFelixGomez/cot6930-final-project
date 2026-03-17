@@ -7,4 +7,9 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fastapi[standard]>=0.135.1",
+]
+
+[tool.fastapi]
+entrypoint = "app.main:app"
