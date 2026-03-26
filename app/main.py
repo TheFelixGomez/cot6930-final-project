@@ -20,7 +20,7 @@ app = FastAPI(lifespan=lifespan)
 
 class RecommendRequest(BaseModel):
     user_id: int = Field(..., description="MovieLens integer user ID")
-    n: int - Field(20, ge=1, le=100, description="Number of recommendations")
+    n: int = Field(20, ge=1, le=100, description="Number of recommendations")
     model: Literal["knn", "popularity"] = Field("knn", description="Model to use")
 
 class RecommendResponse(BaseModel):

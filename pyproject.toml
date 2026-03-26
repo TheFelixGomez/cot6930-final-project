@@ -12,10 +12,14 @@ dependencies = [
     "confluent-kafka>=2.13.2",
     "fastapi[standard]>=0.135.1",
     "jsonschema>=4.26.0",
+    "numpy>=2.4.3",
     "pandas>=3.0.1",
     "pyarrow>=23.0.1",
     "python-decouple>=3.8",
     "redis>=7.4.0",
+    "requests>=2.33.0",
+    "scikit-learn>=1.8.0",
+    "scipy>=1.17.1",
 ]
 
 [tool.fastapi]
