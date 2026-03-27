@@ -54,10 +54,10 @@ KAFKA_DLQ_TOPIC   = config("KAFKA_DLQ_TOPIC",          default="gcl.reco_request
 # R2_ACCESS_KEY_ID → R2 API token Access Key ID
 # R2_SECRET_KEY    → R2 API token Secret Access Key
 # R2_BUCKET        → bucket name
-R2_ACCOUNT_ID     = config("R2_ACCOUNT_ID")
-R2_ACCESS_KEY_ID  = config("R2_ACCESS_KEY_ID")
-R2_SECRET_KEY     = config("R2_SECRET_KEY")
-R2_BUCKET         = config("R2_BUCKET")
+R2_ACCOUNT_ID     = config("R2_ACCOUNT_ID",    default=None)
+R2_ACCESS_KEY_ID  = config("R2_ACCESS_KEY_ID", default=None)
+R2_SECRET_KEY     = config("R2_SECRET_KEY",    default=None)
+R2_BUCKET         = config("R2_BUCKET",        default=None)
 R2_PREFIX         = config("R2_PREFIX",                default="snapshots/")
 OUTPUT_FORMAT     = config("OUTPUT_FORMAT",            default="parquet")  # "parquet" | "csv"
 
