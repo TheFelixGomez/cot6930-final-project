@@ -12,7 +12,6 @@ Models are loaded once at import time so the first request isn't slow.
 """
 
 import logging
-import os
 import pickle
 from pathlib import Path
 
