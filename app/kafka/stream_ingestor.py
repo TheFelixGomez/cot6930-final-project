@@ -1,6 +1,6 @@
 """
-Stream Ingestor — app/kafka/ingestor.py
-----------------------------------------
+Stream Ingestor — app/kafka/stream_ingestor.py
+-----------------------------------------------
 Consumes from gcl.reco_requests, validates messages against
 schemas/event.json, batches valid records, and writes Parquet/CSV
 snapshots to object storage (S3 or Cloudflare R2).
@@ -8,7 +8,7 @@ snapshots to object storage (S3 or Cloudflare R2).
 Invalid messages are forwarded to gcl.reco_requests.dlq.
 
 Mirrors the SSL config pattern from app/kafka/consumer.py.
-Run standalone: uv run python -m app.kafka.ingestor
+Run standalone: uv run python -m app.kafka.stream_ingestor
 
 Dependencies (uv add):
     pandas pyarrow boto3 jsonschema redis
@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -93,12 +94,13 @@ except FileNotFoundError:
     )
     EVENT_SCHEMA = {
         "type": "object",
-        "required": ["user_id", "item_id", "event_type", "ts"],
+        "required": ["probe_id", "team", "sent_at", "payload"],
         "properties": {
-            "user_id":    {"type": "string"},
-            "item_id":    {"type": "string"},
-            "event_type": {"type": "string", "enum": ["view", "click", "purchase"]},
-            "ts":         {"type": "number"},
+            "probe_id": {"type": "string"},
+            "team":     {"type": "string"},
+            "sent_at":  {"type": "string"},
+            "url":      {"type": "string"},
+            "payload":  {"type": "object"},
         },
         "additionalProperties": True,
     }
@@ -133,7 +135,7 @@ def _make_redis():
     return redis_lib.from_url(REDIS_URL)
 
 
-r2    = _make_r2()
+r2    = None
 redis = _make_redis()
 
 # ---------------------------------------------------------------------------
@@ -158,12 +160,17 @@ def validate(raw: bytes) -> tuple[dict | None, str | None]:
     return record, None
 
 
-def flush_batch(batch: list[dict[str, Any]]) -> None:
+def flush_batch(batch: list[dict[str, Any]], r2_client) -> None:
     """Serialize a batch to Parquet or CSV and upload to object storage."""
     if not batch:
         return
 
-    ts  = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    missing = [v for v in ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_KEY", "R2_BUCKET") if not globals()[v]]
+    if missing:
+        raise RuntimeError(f"Missing required R2 config: {', '.join(missing)}")
+
+    ts  = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    uid = uuid.uuid4().hex[:8]
     df  = pd.DataFrame(batch)
 
     if OUTPUT_FORMAT == "parquet":
@@ -178,9 +185,9 @@ def flush_batch(batch: list[dict[str, Any]]) -> None:
         body = text_buf.getvalue().encode("utf-8")
         ext, content_type = "csv", "text/csv"
 
-    key = f"{R2_PREFIX}{ts}.{ext}"
+    key = f"{R2_PREFIX}{ts}_{uid}.{ext}"
 
-    r2.put_object(Bucket=R2_BUCKET, Key=key, Body=body, ContentType=content_type)
+    r2_client.put_object(Bucket=R2_BUCKET, Key=key, Body=body, ContentType=content_type)
     log.info("Flushed %d records → r2://%s/%s", len(batch), R2_BUCKET, key)
 
     if redis:
@@ -202,6 +209,11 @@ def send_to_dlq(producer: Producer, raw: bytes, reason: str) -> None:
 # ---------------------------------------------------------------------------
 
 def run() -> None:
+    missing = [v for v in ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_KEY", "R2_BUCKET") if not globals()[v]]
+    if missing:
+        raise RuntimeError(f"Missing required R2 config: {', '.join(missing)}")
+
+    r2_client = _make_r2()
     consumer = Consumer({
         "bootstrap.servers":  KAFKA_BOOTSTRAP,
         "group.id":           KAFKA_GROUP_ID,
@@ -240,13 +252,13 @@ def run() -> None:
 
             elapsed = time.monotonic() - last_flush
             if len(batch) >= BATCH_SIZE or (batch and elapsed >= FLUSH_INTERVAL_S):
-                flush_batch(batch)
+                flush_batch(batch, r2_client)
                 batch = []
                 last_flush = time.monotonic()
 
     except KeyboardInterrupt:
         log.info("Shutdown — flushing %d remaining records", len(batch))
-        flush_batch(batch)
+        flush_batch(batch, r2_client)
     finally:
         producer.flush()
         consumer.close()
