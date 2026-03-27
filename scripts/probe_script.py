@@ -109,14 +109,31 @@ def call_recommend(payload: dict) -> tuple[dict, dict]:
     try:
         resp        = requests.post(RECOMMEND_URL, json=payload, headers=headers, timeout=REQUEST_TIMEOUT_S)
         received_at = datetime.now(timezone.utc).isoformat()
+
+        # Determine success and response body, handling possible JSON decode errors.
+        if resp.ok:
+            try:
+                response_body = resp.json()
+                success = True
+            except (ValueError, json.JSONDecodeError) as exc:  # JSON parsing failed despite HTTP success
+                log.error("Failed to decode JSON response (probe_id=%s): %s", probe_id, exc)
+                response_body = {
+                    "error": f"Invalid JSON in response: {exc}",
+                    "raw_body": resp.text[:512],
+                }
+                success = False
+        else:
+            response_body = {"error": resp.text[:512]}
+            success = False
+
         resp_record = {
             "probe_id":      probe_id,
             "team":          TEAM,
             "received_at":   received_at,
             "status_code":   resp.status_code,
             "latency_ms":    int(resp.elapsed.total_seconds() * 1000),
-            "success":       resp.ok,
-            "response_body": resp.json() if resp.ok else {"error": resp.text[:512]},
+            "success":       success,
+            "response_body": response_body,
         }
     except requests.exceptions.RequestException as exc:
         received_at = datetime.now(timezone.utc).isoformat()
