@@ -165,19 +165,22 @@ def flush_batch(batch: list[dict[str, Any]]) -> None:
 
     ts  = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     df  = pd.DataFrame(batch)
-    buf = io.BytesIO()
 
     if OUTPUT_FORMAT == "parquet":
+        buf = io.BytesIO()
         df.to_parquet(buf, index=False, engine="pyarrow")
+        buf.seek(0)
+        body = buf.getvalue()
         ext, content_type = "parquet", "application/octet-stream"
     else:
-        df.to_csv(buf, index=False)
+        text_buf = io.StringIO()
+        df.to_csv(text_buf, index=False)
+        body = text_buf.getvalue().encode("utf-8")
         ext, content_type = "csv", "text/csv"
 
-    buf.seek(0)
     key = f"{R2_PREFIX}{ts}.{ext}"
 
-    r2.put_object(Bucket=R2_BUCKET, Key=key, Body=buf.getvalue(), ContentType=content_type)
+    r2.put_object(Bucket=R2_BUCKET, Key=key, Body=body, ContentType=content_type)
     log.info("Flushed %d records → r2://%s/%s", len(batch), R2_BUCKET, key)
 
     if redis:
