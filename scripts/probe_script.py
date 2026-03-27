@@ -1,6 +1,6 @@
 """
-Recommendation API Probe — scripts/probe.py
---------------------------------------------
+Recommendation API Probe — scripts/probe_script.py
+---------------------------------------------------
 Fires sample payloads at the /recommend endpoint and writes
 request + response records to Kafka topics:
     gcl.reco_requests
@@ -59,9 +59,7 @@ REQUESTS_TOPIC  = f"{TEAM}.reco_requests"
 RESPONSES_TOPIC = f"{TEAM}.reco_responses"
 
 # ---------------------------------------------------------------------------
-# Probe payloads
-# NOTE: update these fields to match the actual /recommend request schema
-# once that route is added to app/main.py
+# Probe payloads — matches the /recommend request schema (RecommendRequest)
 # ---------------------------------------------------------------------------
 PROBE_PAYLOADS = [
     {"user_id": 1,   "n": 10, "model": "knn"},

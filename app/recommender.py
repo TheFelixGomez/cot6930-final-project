@@ -99,7 +99,16 @@ def recommend(user_id: int, k: int = 20, model: str = "knn") -> dict:
             user_id      - echoed back
             model_used   - which model actually served the request
             movie_ids    - list of recommended movie IDs (ints)
+
+    Raises:
+        RuntimeError: If no model artifacts are available. Run train.py first.
     """
+    if _popularity is None and _knn is None:
+        raise RuntimeError(
+            "No model artifacts are available. "
+            f"Expected models in {_MODEL_DIR}. Run recommender/train.py first."
+        )
+
     if model == "popularity" or _knn is None:
         return {
             "user_id":   user_id,

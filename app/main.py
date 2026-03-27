@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 from typing import Literal
 
@@ -6,6 +7,8 @@ from pydantic import BaseModel, Field
 
 from app.kafka.consumer import start_consumer, stop_consumer
 from app.recommender import recommend
+
+log = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -55,13 +58,17 @@ async def recommend_movies(req: RecommendRequest):
     * ``movie_ids``: A list of recommended movie IDs.
 
     Validation errors in the request body will result in a 422 response generated
-    by FastAPI. Unexpected errors from the underlying recommender will result in
-    a 500 response with a descriptive error message.
+    by FastAPI. If model artifacts are unavailable the endpoint returns 503.
+    Unexpected errors from the underlying recommender will result in a 500 response.
     """
     try:
         result = recommend(user_id=req.user_id, k=req.n, model=req.model)
+    except RuntimeError as exc:
+        log.error("Model artifacts unavailable for /recommend: %s", exc)
+        raise HTTPException(status_code=503, detail="Recommendation service unavailable: model artifacts are missing.")
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        log.exception("Unexpected error in /recommend for user_id=%s", req.user_id)
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
 
     return result
 
