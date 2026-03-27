@@ -3,7 +3,6 @@ import time
 import pickle
 import pandas as pd
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 from collections import Counter
 
@@ -40,14 +39,9 @@ def train_knn(train_df):
     vals = train_df["rating"].values.astype(np.float32)
     matrix = csr_matrix((vals, (rows, cols)), shape=(len(user_ids), len(movie_ids)))
 
-    # fit item-based KNN on the transposed matrix (items as rows)
-    model = NearestNeighbors(n_neighbors=21, metric="cosine", algorithm="brute")
-    model.fit(matrix.T)
-
     train_time = time.time() - start
 
     return {
-        "model": model,
         "matrix": matrix,
         "user_map": user_map,
         "movie_map": movie_map,
