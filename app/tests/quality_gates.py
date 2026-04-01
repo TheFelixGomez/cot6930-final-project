@@ -88,7 +88,7 @@ class TestIngestorValidator:
     def test_invalid_json_rejected(self):
         from app.kafka.stream_ingestor import validate
         record, err = validate(b"{not valid json}")
-        assert record["extra_field"] == "some_value"
+        assert record is None
         assert "json_decode_error" in err
 
 
