@@ -1,6 +1,6 @@
 """
 Recommendation API Probe — scripts/probe_script.py
----------------------------------------------------
+--------------------------------------------
 Fires sample payloads at the /recommend endpoint and writes
 request + response records to Kafka topics:
     gcl.reco_requests
@@ -50,7 +50,7 @@ _SSL_CONF = {
 KAFKA_BOOTSTRAP   = config("KAFKA_BOOTSTRAP_SERVERS")       # matches consumer.py
 RECOMMEND_URL     = config("RECOMMEND_URL", default="")
 API_KEY           = config("API_KEY",           default="")
-REQUEST_TIMEOUT_S = config("REQUEST_TIMEOUT_S", default=10, cast=int)
+REQUEST_TIMEOUT_S = config("REQUEST_TIMEOUT_S", default=60, cast=int)
 
 # Team is hardcoded to gcl based on consumer.py — override via env if needed
 TEAM = config("TEAM", default="gcl")
@@ -59,12 +59,17 @@ REQUESTS_TOPIC  = f"{TEAM}.reco_requests"
 RESPONSES_TOPIC = f"{TEAM}.reco_responses"
 
 # ---------------------------------------------------------------------------
-# Probe payloads — matches the /recommend request schema (RecommendRequest)
+# Probe payloads
+# NOTE: update these fields to match the actual /recommend request schema
+# once that route is added to app/main.py
 # ---------------------------------------------------------------------------
 PROBE_PAYLOADS = [
-    {"user_id": 1,   "n": 10, "model": "knn"},
-    {"user_id": 1,   "n": 5, "model": "popularity"},
-    {"user_id": 99999,   "n": 10, "model": "knn"},
+    # Known user, KNN model — should return recommendations
+    {"user_id": 1,    "n": 10, "model": "knn"},
+    # Known user, popularity model — always returns results
+    {"user_id": 1,    "n": 5,  "model": "popularity"},
+    # Unknown user, KNN — should fall back to popularity silently
+    {"user_id": 99999, "n": 10, "model": "knn"},
 ]
 
 # ---------------------------------------------------------------------------
@@ -107,31 +112,14 @@ def call_recommend(payload: dict) -> tuple[dict, dict]:
     try:
         resp        = requests.post(RECOMMEND_URL, json=payload, headers=headers, timeout=REQUEST_TIMEOUT_S)
         received_at = datetime.now(timezone.utc).isoformat()
-
-        # Determine success and response body, handling possible JSON decode errors.
-        if resp.ok:
-            try:
-                response_body = resp.json()
-                success = True
-            except (ValueError, json.JSONDecodeError) as exc:  # JSON parsing failed despite HTTP success
-                log.error("Failed to decode JSON response (probe_id=%s): %s", probe_id, exc)
-                response_body = {
-                    "error": f"Invalid JSON in response: {exc}",
-                    "raw_body": resp.text[:512],
-                }
-                success = False
-        else:
-            response_body = {"error": resp.text[:512]}
-            success = False
-
         resp_record = {
             "probe_id":      probe_id,
             "team":          TEAM,
             "received_at":   received_at,
             "status_code":   resp.status_code,
             "latency_ms":    int(resp.elapsed.total_seconds() * 1000),
-            "success":       success,
-            "response_body": response_body,
+            "success":       resp.ok,
+            "response_body": resp.json() if resp.ok else {"error": resp.text[:512]},
         }
     except requests.exceptions.RequestException as exc:
         received_at = datetime.now(timezone.utc).isoformat()
@@ -153,6 +141,10 @@ def call_recommend(payload: dict) -> tuple[dict, dict]:
 # ---------------------------------------------------------------------------
 
 def run() -> None:
+    if not RECOMMEND_URL:
+        log.error("RECOMMEND_URL is not set — skipping probe run.")
+        sys.exit(1)
+
     producer = _producer()
     failures = 0
 

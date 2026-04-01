@@ -35,6 +35,13 @@ jobs:
           echo "${{ secrets.KAFKA_SERVICE_CERT }}" > certs/kafka-service.cert
           echo "${{ secrets.KAFKA_SERVICE_KEY }}"  > certs/kafka-service.key
 
+      - name: Warm up Render instance
+        run: |
+          echo "Pinging ${{ vars.RECOMMEND_URL }} to wake up Render..."
+          curl --max-time 90 --retry 3 --retry-delay 10 --retry-all-errors \
+            -s -o /dev/null -w "HTTP %{http_code}\n" \
+            "${{ vars.RECOMMEND_URL }}" || true
+
       - name: Run probe
         env:
           TEAM:                    ${{ vars.TEAM }}
