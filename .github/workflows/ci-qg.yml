@@ -55,7 +55,7 @@ jobs:
           TEAM:                    gcl
           RECOMMEND_URL:           http://localhost:8000/recommend
         run: |
-          uv run pytest tests/test_quality_gates.py \
+          uv run pytest app/tests/quality_gates.py \
             --cov=app --cov=scripts \
             --cov-report=term-missing \
             --cov-fail-under=60
