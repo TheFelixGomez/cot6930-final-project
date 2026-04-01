@@ -34,6 +34,11 @@ jobs:
             -subj "/CN=test" 2>/dev/null
           cp certs/kafka-service.cert certs/kafka-ca.pem
 
+      - name: Download and train models
+        run: |
+          uv run python recommender/download_data.py
+          uv run python recommender/train.py
+
       - name: Run quality gate tests
         env:
           KAFKA_BOOTSTRAP_SERVERS: localhost:9092   # not used — mocked in tests

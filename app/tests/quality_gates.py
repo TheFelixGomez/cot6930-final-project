@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
-import pandera as pa
+import pandera.pandas as pa
 import pytest
 from fastapi.testclient import TestClient
 from scipy.sparse import csr_matrix
@@ -88,7 +88,7 @@ class TestIngestorValidator:
     def test_invalid_json_rejected(self):
         from app.kafka.stream_ingestor import validate
         record, err = validate(b"{not valid json}")
-        assert record is None
+        assert record pandase
         assert "json_decode_error" in err
 
 

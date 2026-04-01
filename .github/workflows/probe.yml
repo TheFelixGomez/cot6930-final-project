@@ -23,6 +23,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      - name: Download and train models
+        run: |
+          uv run python recommender/download_data.py
+          uv run python recommender/train.py
+
       - name: Write Kafka SSL certificates
         run: |
           mkdir -p certs
