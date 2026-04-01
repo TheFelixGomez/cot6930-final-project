@@ -43,7 +43,7 @@ jobs:
           R2_BUCKET:               test-bucket
           TEAM:                    gcl
           RECOMMEND_URL:           http://localhost:8000/recommend
-        run: uv run pytest tests/test_quality_gates.py -v --tb=short
+        run: uv run pytest app/tests/quality_gates.py -v --tb=short
 
       - name: Coverage report
         env:
