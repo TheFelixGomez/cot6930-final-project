@@ -1,0 +1,61 @@
+name: CI — Quality Gates
+
+on:
+  push:
+    branches: [main, "*/stream-ingestor*"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # Kafka SSL certs are needed to import the ingestor module.
+      # We write dummy certs so imports succeed without a live cluster.
+      - name: Write dummy SSL certs for import
+        run: |
+          mkdir -p certs
+          openssl req -x509 -newkey rsa:2048 -keyout certs/kafka-service.key \
+            -out certs/kafka-service.cert -days 1 -nodes \
+            -subj "/CN=test" 2>/dev/null
+          cp certs/kafka-service.cert certs/kafka-ca.pem
+
+      - name: Run quality gate tests
+        env:
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092   # not used — mocked in tests
+          R2_ACCOUNT_ID:           test-account
+          R2_ACCESS_KEY_ID:        test-key
+          R2_SECRET_KEY:           test-secret
+          R2_BUCKET:               test-bucket
+          TEAM:                    gcl
+          RECOMMEND_URL:           http://localhost:8000/recommend
+        run: uv run pytest tests/test_quality_gates.py -v --tb=short
+
+      - name: Coverage report
+        env:
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+          R2_ACCOUNT_ID:           test-account
+          R2_ACCESS_KEY_ID:        test-key
+          R2_SECRET_KEY:           test-secret
+          R2_BUCKET:               test-bucket
+          TEAM:                    gcl
+          RECOMMEND_URL:           http://localhost:8000/recommend
+        run: |
+          uv run pytest tests/test_quality_gates.py \
+            --cov=app --cov=scripts \
+            --cov-report=term-missing \
+            --cov-fail-under=60

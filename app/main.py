@@ -66,7 +66,7 @@ async def recommend_movies(req: RecommendRequest):
     except RuntimeError as exc:
         log.error("Model artifacts unavailable for /recommend: %s", exc)
         raise HTTPException(status_code=503, detail="Recommendation service unavailable: model artifacts are missing.")
-    except Exception as exc:
+    except Exception:
         log.exception("Unexpected error in /recommend for user_id=%s", req.user_id)
         raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
 

@@ -1,0 +1,43 @@
+name: Recommendation API Probe
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Write Kafka SSL certificates
+        run: |
+          mkdir -p certs
+          echo "${{ secrets.KAFKA_CA_PEM }}"       > certs/kafka-ca.pem
+          echo "${{ secrets.KAFKA_SERVICE_CERT }}" > certs/kafka-service.cert
+          echo "${{ secrets.KAFKA_SERVICE_KEY }}"  > certs/kafka-service.key
+
+      - name: Run probe
+        env:
+          TEAM:                    ${{ vars.TEAM }}
+          RECOMMEND_URL:           ${{ vars.RECOMMEND_URL }}
+          KAFKA_BOOTSTRAP_SERVERS: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
+          API_KEY:                 ${{ secrets.RECOMMEND_API_KEY }}
+        run: uv run python scripts/probe_script.py
+
+      - name: Clean up SSL certificates
+        if: always()
+        run: rm -rf certs/

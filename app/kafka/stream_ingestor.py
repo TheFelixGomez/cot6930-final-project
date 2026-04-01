@@ -65,6 +65,9 @@ OUTPUT_FORMAT     = config("OUTPUT_FORMAT",            default="parquet")  # "pa
 BATCH_SIZE        = config("BATCH_SIZE",               default=5,  cast=int)
 FLUSH_INTERVAL_S  = config("FLUSH_INTERVAL_S",         default=10,   cast=int)
 
+MAX_FLUSH_RETRIES = config("MAX_FLUSH_RETRIES", default=3,  cast=int)
+FLUSH_BACKOFF_S   = config("FLUSH_BACKOFF_S",   default=2,  cast=int)
+
 REDIS_URL         = config("REDIS_URL",                default="")
 REDIS_TTL_S       = config("REDIS_TTL_S",              default=3600, cast=int)
 
@@ -165,30 +168,33 @@ def flush_batch(batch: list[dict[str, Any]], r2_client) -> None:
     if not batch:
         return
 
-    missing = [v for v in ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_KEY", "R2_BUCKET") if not globals()[v]]
-    if missing:
-        raise RuntimeError(f"Missing required R2 config: {', '.join(missing)}")
-
     ts  = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     uid = uuid.uuid4().hex[:8]
     df  = pd.DataFrame(batch)
+    buf = io.BytesIO()
 
     if OUTPUT_FORMAT == "parquet":
-        buf = io.BytesIO()
         df.to_parquet(buf, index=False, engine="pyarrow")
-        buf.seek(0)
-        body = buf.getvalue()
         ext, content_type = "parquet", "application/octet-stream"
     else:
-        text_buf = io.StringIO()
-        df.to_csv(text_buf, index=False)
-        body = text_buf.getvalue().encode("utf-8")
+        df.to_csv(buf, index=False)
         ext, content_type = "csv", "text/csv"
 
+    buf.seek(0)
     key = f"{R2_PREFIX}{ts}_{uid}.{ext}"
+    body = buf.getvalue()
 
-    r2_client.put_object(Bucket=R2_BUCKET, Key=key, Body=body, ContentType=content_type)
-    log.info("Flushed %d records → r2://%s/%s", len(batch), R2_BUCKET, key)
+    for attempt in range(1, MAX_FLUSH_RETRIES + 1):
+        try:
+            r2_client.put_object(Bucket=R2_BUCKET, Key=key, Body=body, ContentType=content_type)
+            log.info("Flushed %d records → r2://%s/%s", len(batch), R2_BUCKET, key)
+            break
+        except Exception as exc:
+            log.warning("Flush attempt %d/%d failed: %s", attempt, MAX_FLUSH_RETRIES, exc)
+            if attempt == MAX_FLUSH_RETRIES:
+                log.error("All flush retries exhausted - batch lost for key %s", key)
+                raise
+            time.sleep(FLUSH_BACKOFF_S * attempt)
 
     if redis:
         cache_key = f"ingestor:latest_snapshot:{KAFKA_INPUT_TOPIC}"

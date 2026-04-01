@@ -27,6 +27,8 @@ entrypoint = "app.main:app"
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
+    "pandera>=0.30.1",
     "pytest>=9.0.2",
     "pytest-cov>=7.1.0",
     "ruff>=0.15.7",

@@ -48,7 +48,7 @@ _SSL_CONF = {
 # Config
 # ---------------------------------------------------------------------------
 KAFKA_BOOTSTRAP   = config("KAFKA_BOOTSTRAP_SERVERS")       # matches consumer.py
-RECOMMEND_URL     = config("RECOMMEND_URL")
+RECOMMEND_URL     = config("RECOMMEND_URL", default="")
 API_KEY           = config("API_KEY",           default="")
 REQUEST_TIMEOUT_S = config("REQUEST_TIMEOUT_S", default=10, cast=int)
 
