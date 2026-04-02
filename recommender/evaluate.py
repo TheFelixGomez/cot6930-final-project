@@ -3,7 +3,7 @@ import time
 import pickle
 import numpy as np
 import pandas as pd
-from config import MODEL_DIR, EVAL_K, EVAL_SAMPLE_SIZE, RANDOM_SEED, DATA_DIR
+from config import MODEL_DIR, EVAL_K, EVAL_SAMPLE_SIZE, RANDOM_SEED, DATA_DIR, TEST_RATIO
 
 def load_model(name):
     with open(os.path.join(MODEL_DIR, f"{name}.pkl"), "rb") as f:
@@ -110,7 +110,7 @@ def main():
     train_full = train_full.sort_values(["user_id", "timestamp"])
     train_list = []
     for _, group in train_full.groupby("user_id"):
-        n_test = max(1, int(len(group) * 0.2))
+        n_test = max(1, int(len(group) * TEST_RATIO))
         train_list.append(group.iloc[:-n_test])
     train_df = pd.concat(train_list)
 
