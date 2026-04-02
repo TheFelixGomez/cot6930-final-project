@@ -133,6 +133,5 @@ desktop.ini
 data/
 output/
 results/
-models/
-checkpoints/
-
+# models/ : removed from gitignore to allow .pkl files through for use
+# checkpoints/ : removed from gitignore to allow .pkl files through for use
