@@ -91,7 +91,7 @@ def subpopulation_analysis(recommend_fn, model, train_df, test_df, k=20):
             continue
         hr = hit_rate_at_k(recommend_fn, model, subset, k)
         ndcg = ndcg_at_k(recommend_fn, model, subset, k)
-        results[label] = {"HR@" + str(k): round(hr, 4), "NDCG@" + str(k): round(ndcg, 4), "Users": len(user_set)}
+        results[label] = {"HR@" + str(k): round(hr, 4), "NDCG@" + str(k): round(ndcg, 4), "Users": subset["user_id"].nunique()}
 
     return results
 
