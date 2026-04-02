@@ -136,7 +136,7 @@ def main():
     pop_size = os.path.getsize(os.path.join(MODEL_DIR, "popularity.pkl")) / (1024 * 1024)
     knn_size = os.path.getsize(os.path.join(MODEL_DIR, "knn.pkl")) / (1024 * 1024)
 
-    print(f"\n{'Metric':<25} {'Popularity':<15} {'KNN (Item-CF)':<15}")
+    print(f"\n{'Metric':<25} {'Popularity':<15} {'KNN (User-CF)':<15}")
     print("-" * 55)
     print(f"{'HR@' + str(k):<25} {pop_hr:<15.4f} {knn_hr:<15.4f}")
     print(f"{'NDCG@' + str(k):<25} {pop_ndcg:<15.4f} {knn_ndcg:<15.4f}")
