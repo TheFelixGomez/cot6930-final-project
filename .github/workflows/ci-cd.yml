@@ -9,6 +9,13 @@ jobs:
   test-and-lint:
    runs-on: ubuntu-latest
 
+   # Add dummy variables so python-decouple doesn't crash during testing
+   env:
+     KAFKA_BOOTSTRAP_SERVERS: 'dummy_server:9092'
+     KAFKA_CA_PEM: 'dummy_ca'
+     KAFKA_SERVICE_CERT: 'dummy_cert'
+     KAFKA_SERVICE_KEY: 'dummy_key'
+
    steps:
      - name: Checkout repository
        uses: actions/checkout@v6
