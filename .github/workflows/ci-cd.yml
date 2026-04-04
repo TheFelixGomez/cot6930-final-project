@@ -6,31 +6,31 @@ on:
   workflow_dispatch: # For manually click "Run workflow" in GitHub
 
 jobs:
-  # test-and-lint:
-  #   runs-on: ubuntu-latest
-  #
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v6
-  #
-  #     - name: Install uv
-  #       uses: astral-sh/setup-uv@v7
-  #       with:
-  #         enable-cache: true
-  #
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v6
-  #       with:
-  #         python-version: '3.13'
-  #
-  #     - name: Install dependencies
-  #       run: uv sync
-  #
-  #     - name: Lint code with Ruff
-  #       run: uv run ruff check .
-  #
-  #     - name: Run tests with 70% coverage requirement
-  #       run: uv run pytest --cov=. --cov-fail-under=70
+ test-and-lint:
+   runs-on: ubuntu-latest
+
+   steps:
+     - name: Checkout repository
+       uses: actions/checkout@v6
+
+     - name: Install uv
+       uses: astral-sh/setup-uv@v7
+       with:
+         enable-cache: true
+
+     - name: Set up Python
+       uses: actions/setup-python@v6
+       with:
+         python-version: '3.13'
+
+     - name: Install dependencies
+       run: uv sync
+
+     - name: Lint code with Ruff
+       run: uv run ruff check .
+
+     - name: Run tests with 70% coverage requirement
+       run: uv run pytest --cov=. --cov-fail-under=70
 
   build-and-push:
     runs-on: ubuntu-latest
