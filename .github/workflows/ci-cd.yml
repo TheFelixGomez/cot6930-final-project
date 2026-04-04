@@ -6,7 +6,7 @@ on:
   workflow_dispatch: # For manually click "Run workflow" in GitHub
 
 jobs:
- test-and-lint:
+  test-and-lint:
    runs-on: ubuntu-latest
 
    steps:
