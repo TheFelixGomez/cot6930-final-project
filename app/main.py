@@ -1,15 +1,35 @@
 import logging
+import secrets
 from contextlib import asynccontextmanager
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, Field
+from decouple import config
 
 from app.kafka.consumer import start_consumer, stop_consumer
 from app.recommender import recommend
 
 log = logging.getLogger(__name__)
+security = HTTPBasic()
+
+
+def verify_metrics_credentials(credentials: HTTPBasicCredentials = Depends(security)):
+    expected_user = config("METRICS_USER")
+    expected_pass = config("METRICS_PASSWORD")
+    
+    correct_username = secrets.compare_digest(credentials.username, expected_user)
+    correct_password = secrets.compare_digest(credentials.password, expected_pass)
+    
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials
 
 
 @asynccontextmanager
@@ -79,4 +99,6 @@ async def recommend_movies(req: RecommendRequest):
 
 
 # Set up Prometheus instrumentation for the app
-Instrumentator().instrument(app).expose(app)
+Instrumentator().instrument(app).expose(app,
+                                        endpoint="/metrics",
+                                        dependencies=[Depends(verify_metrics_credentials)])
