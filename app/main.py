@@ -66,6 +66,11 @@ async def ping():
     return {"message": "pong"}
 
 
+@app.head("/ping")
+async def ping_head():
+    return {"message": "pong"}
+
+
 @app.post("/recommend", response_model=RecommendResponse)
 async def recommend_movies(req: RecommendRequest):
     """Return top-n movie recommendations for a given user.
