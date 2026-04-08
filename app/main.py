@@ -3,12 +3,14 @@ from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, Field
 
 from app.kafka.consumer import start_consumer, stop_consumer
 from app.recommender import recommend
 
 log = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -21,10 +23,12 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
 class RecommendRequest(BaseModel):
     user_id: int = Field(..., description="MovieLens integer user ID")
     n: int = Field(20, ge=1, le=100, description="Number of recommendations")
     model: Literal["knn", "popularity"] = Field("knn", description="Model to use")
+
 
 class RecommendResponse(BaseModel):
     user_id: int
@@ -40,6 +44,7 @@ async def root():
 @app.get("/ping")
 async def ping():
     return {"message": "pong"}
+
 
 @app.post("/recommend", response_model=RecommendResponse)
 async def recommend_movies(req: RecommendRequest):
@@ -69,6 +74,9 @@ async def recommend_movies(req: RecommendRequest):
     except Exception:
         log.exception("Unexpected error in /recommend for user_id=%s", req.user_id)
         raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
-
+    
     return result
 
+
+# Set up Prometheus instrumentation for the app
+Instrumentator().instrument(app).expose(app)
