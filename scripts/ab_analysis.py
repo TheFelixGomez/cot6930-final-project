@@ -89,7 +89,7 @@ def main():
     # two-sample t-test (Welch's, does not assume equal variance)
     t_stat, p_value = stats.ttest_ind(knn_latencies, pop_latencies, equal_var=False)
 
-    print(f"\n=== A/B TEST RESULTS (Latency Comparison) ===")
+    print("\n=== A/B TEST RESULTS (Latency Comparison) ===")
     print(f"{'Metric':<30} {'KNN':<15} {'Popularity':<15}")
     print("-" * 60)
     print(f"{'N':<30} {len(knn_latencies):<15} {len(pop_latencies):<15}")
@@ -106,7 +106,7 @@ def main():
         slower = "Popularity" if faster == "KNN" else "KNN"
         print(f"\nDecision: {faster} has significantly lower latency than {slower}. Consider promoting {faster} as the default if accuracy is comparable.")
     else:
-        print(f"\nDecision: No significant latency difference detected between models.")
+        print("\nDecision: No significant latency difference detected between models.")
 
 if __name__ == "__main__":
     main()
