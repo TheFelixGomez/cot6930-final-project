@@ -1,0 +1,39 @@
+name: Automated Model Retraining
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"   # every Monday at 03:00 UTC
+  workflow_dispatch:        # manual trigger for testing
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run retraining and publish to registry
+        env:
+          R2_ACCOUNT_ID:            ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID:         ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_KEY:            ${{ secrets.R2_SECRET_KEY }}
+          R2_BUCKET:                ${{ vars.R2_BUCKET }}
+          PIPELINE_GIT_SHA:         ${{ github.sha }}
+          CONTAINER_IMAGE_DIGEST:   ${{ vars.CONTAINER_IMAGE_DIGEST }}
+        run: uv run python scripts/retrain.py
+
+      - name: Trigger Render redeploy via deploy hook
+        run: |
+          curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" \
+            -o /dev/null -w "Render deploy triggered: HTTP %{http_code}\n"
