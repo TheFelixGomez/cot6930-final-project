@@ -40,6 +40,7 @@ jobs:
        run: uv run pytest --cov=. --cov-fail-under=70
 
   build-and-push:
+    needs: test-and-lint
     runs-on: ubuntu-latest
     permissions:
       contents: read
