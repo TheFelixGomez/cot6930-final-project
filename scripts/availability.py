@@ -67,12 +67,12 @@ def main():
         print(f"First probe: {timestamps[0]}")
         print(f"Last probe:  {timestamps[-1]}")
 
-    print(f"\n=== AVAILABILITY ===")
+    print("\n=== AVAILABILITY ===")
     print(f"Total probes:      {total}")
     print(f"Successful:        {success}")
     print(f"Failed:            {failed}")
     print(f"Availability:      {availability:.2f}%")
-    print(f"Requirement:       >=70%")
+    print("Requirement:       >=70%")
     print(f"Met:               {'Yes' if availability >= 70 else 'No'}")
 
 if __name__ == "__main__":
