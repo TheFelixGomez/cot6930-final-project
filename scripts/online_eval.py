@@ -31,9 +31,7 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# SSL cert resolution — mirrors consumer.py pattern
-# ---------------------------------------------------------------------------
+
 _RENDER_CERT_PATH = "/etc/secrets/kafka-ca.pem"
 CERT_DIR = "/etc/secrets" if os.path.exists(_RENDER_CERT_PATH) else "certs"
 
@@ -44,9 +42,6 @@ _SSL_CONF = {
     "ssl.key.location":         os.path.join(CERT_DIR, "kafka-service.key"),
 }
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
 KAFKA_BOOTSTRAP   = config("KAFKA_BOOTSTRAP_SERVERS")
 TEAM              = config("TEAM", default="gcl")
 WINDOW_MINUTES    = config("EVAL_WINDOW_MINUTES", default=30, cast=int)
@@ -56,9 +51,6 @@ TOP_K             = config("EVAL_TOP_K", default=10, cast=int)
 RESPONSES_TOPIC   = f"{TEAM}.reco_responses"   # probe responses (recommended ids)
 REQUESTS_TOPIC    = f"{TEAM}.reco_requests"    # engagement events (view/click/purchase)
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _make_consumer(group_id: str) -> Consumer:
     return Consumer({
@@ -101,9 +93,6 @@ def _drain_topic(topic: str, group_id: str, max_empty_polls: int = 10) -> list[d
 def _parse_iso(ts: str) -> datetime:
     return datetime.fromisoformat(ts).replace(tzinfo=timezone.utc)
 
-# ---------------------------------------------------------------------------
-# Core evaluation logic
-# ---------------------------------------------------------------------------
 
 def compute_hit_rate(
     responses: list[dict],
@@ -196,9 +185,6 @@ def compute_hit_rate(
         },
     }
 
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 def run() -> None:
     log.info("Draining %s...", RESPONSES_TOPIC)
