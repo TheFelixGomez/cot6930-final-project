@@ -1,19 +1,3 @@
-"""
-Recommendation API Probe — scripts/probe_script.py
---------------------------------------------
-Fires sample payloads at the /recommend endpoint and writes
-request + response records to Kafka topics:
-    gcl.reco_requests
-    gcl.reco_responses
-
-Uses the same SSL cert resolution pattern as app/kafka/consumer.py.
-Exit code 1 on any probe failure — GH Actions marks the job failed.
-
-Dependencies:
-    requests
-    (confluent-kafka and python-decouple already in pyproject.toml)
-"""
-
 import json
 import logging
 import os
@@ -31,9 +15,8 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# SSL cert resolution — mirrors app/kafka/consumer.py exactly
-# ---------------------------------------------------------------------------
+# Configurations
+
 _RENDER_CERT_PATH = "/etc/secrets/kafka-ca.pem"
 CERT_DIR = "/etc/secrets" if os.path.exists(_RENDER_CERT_PATH) else "certs"
 
@@ -44,37 +27,22 @@ _SSL_CONF = {
     "ssl.key.location":         os.path.join(CERT_DIR, "kafka-service.key"),
 }
 
-# ---------------------------------------------------------------------------
-# Config
-# ---------------------------------------------------------------------------
-KAFKA_BOOTSTRAP   = config("KAFKA_BOOTSTRAP_SERVERS")       # matches consumer.py
+KAFKA_BOOTSTRAP   = config("KAFKA_BOOTSTRAP_SERVERS")
 RECOMMEND_URL     = config("RECOMMEND_URL", default="")
 API_KEY           = config("API_KEY",           default="")
 REQUEST_TIMEOUT_S = config("REQUEST_TIMEOUT_S", default=60, cast=int)
-
-# Team is hardcoded to gcl based on consumer.py — override via env if needed
-TEAM = config("TEAM", default="gcl")
+TEAM              = config("TEAM", default="gcl")
 
 REQUESTS_TOPIC  = f"{TEAM}.reco_requests"
 RESPONSES_TOPIC = f"{TEAM}.reco_responses"
 
-# ---------------------------------------------------------------------------
-# Probe payloads
-# NOTE: update these fields to match the actual /recommend request schema
-# once that route is added to app/main.py
-# ---------------------------------------------------------------------------
+
 PROBE_PAYLOADS = [
-    # Known user, KNN model — should return recommendations
-    {"user_id": 1,    "n": 10, "model": "knn"},
-    # Known user, popularity model — always returns results
-    {"user_id": 1,    "n": 5,  "model": "popularity"},
-    # Unknown user, KNN — should fall back to popularity silently
+    {"user_id": 1,     "n": 10, "model": "knn"},
+    {"user_id": 1,     "n": 5,  "model": "popularity"},
     {"user_id": 99999, "n": 10, "model": "knn"},
 ]
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _producer() -> Producer:
     return Producer({
@@ -110,8 +78,14 @@ def call_recommend(payload: dict) -> tuple[dict, dict]:
     }
 
     try:
-        resp        = requests.post(RECOMMEND_URL, json=payload, headers=headers, timeout=REQUEST_TIMEOUT_S)
+        resp        = requests.post(
+            RECOMMEND_URL, json=payload, headers=headers, timeout=REQUEST_TIMEOUT_S
+        )
         received_at = datetime.now(timezone.utc).isoformat()
+
+        # Parse response body once — used for both logging and provenance
+        body = resp.json() if resp.ok else {"error": resp.text[:512]}
+
         resp_record = {
             "probe_id":      probe_id,
             "team":          TEAM,
@@ -119,8 +93,15 @@ def call_recommend(payload: dict) -> tuple[dict, dict]:
             "status_code":   resp.status_code,
             "latency_ms":    int(resp.elapsed.total_seconds() * 1000),
             "success":       resp.ok,
-            "response_body": resp.json() if resp.ok else {"error": resp.text[:512]},
+            "response_body": body,
+            # Provenance fields — populated from /recommend response when present
+            "request_id":             body.get("request_id",             probe_id),
+            "model_version":          body.get("model_version",          "unknown"),
+            "data_snapshot_id":       body.get("data_snapshot_id",       "unknown"),
+            "pipeline_git_sha":       body.get("pipeline_git_sha",       "unknown"),
+            "container_image_digest": body.get("container_image_digest", "unknown"),
         }
+
     except requests.exceptions.RequestException as exc:
         received_at = datetime.now(timezone.utc).isoformat()
         resp_record = {
@@ -131,14 +112,16 @@ def call_recommend(payload: dict) -> tuple[dict, dict]:
             "latency_ms":    None,
             "success":       False,
             "response_body": {"error": str(exc)},
+            # Provenance fields — unknown on failure
+            "request_id":             probe_id,
+            "model_version":          "unknown",
+            "data_snapshot_id":       "unknown",
+            "pipeline_git_sha":       "unknown",
+            "container_image_digest": "unknown",
         }
         log.error("Request failed (probe_id=%s): %s", probe_id, exc)
 
     return req_record, resp_record
-
-# ---------------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------------
 
 def run() -> None:
     if not RECOMMEND_URL:
@@ -156,11 +139,12 @@ def run() -> None:
         _produce(producer, RESPONSES_TOPIC, resp_record)
 
         log.info(
-            "probe_id=%s  status=%s  latency=%sms  success=%s",
+            "probe_id=%s  status=%s  latency=%sms  success=%s  model_version=%s",
             req_record["probe_id"],
             resp_record["status_code"],
             resp_record["latency_ms"],
             resp_record["success"],
+            resp_record["model_version"],
         )
 
         if not resp_record["success"]:
