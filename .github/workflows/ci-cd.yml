@@ -3,6 +3,8 @@ name: CI/CD Pipeline
 on:
   push:
     branches: ['main']
+  pull_request:
+    branches: ['main']
   workflow_dispatch: # For manually click "Run workflow" in GitHub
 
 jobs:
@@ -41,6 +43,7 @@ jobs:
 
   build-and-push:
     needs: test-and-lint
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
