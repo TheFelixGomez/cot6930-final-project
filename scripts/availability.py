@@ -4,7 +4,8 @@ from confluent_kafka import Consumer
 from decouple import config
 
 KAFKA_BOOTSTRAP = config("KAFKA_BOOTSTRAP_SERVERS")
-CERT_DIR = "certs"
+_RENDER_CERT_PATH = "/etc/secrets/kafka-ca.pem"
+CERT_DIR = "/etc/secrets" if os.path.exists(_RENDER_CERT_PATH) else "certs"
 
 def create_consumer(group_id):
     return Consumer({
