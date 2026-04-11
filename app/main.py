@@ -153,7 +153,6 @@ class RecommendResponse(BaseModel):
     model_version:          str
     data_snapshot_id:       str
     pipeline_git_sha:       str
-    container_image_digest: str
 
 @app.get("/")
 async def root():
