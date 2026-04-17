@@ -13,11 +13,13 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, Field
+from fastapi_limiter.depends import RateLimiter
+from pyrate_limiter import Limiter, Rate, Duration
 
 from app.kafka.consumer import start_consumer, stop_consumer
 from app.recommender import recommend
 
-log      = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 security = HTTPBasic()
 
 
@@ -39,20 +41,20 @@ def verify_metrics_credentials(
     return credentials
 
 
-PIPELINE_GIT_SHA       = config("PIPELINE_GIT_SHA",       default="unknown")
+PIPELINE_GIT_SHA = config("PIPELINE_GIT_SHA", default="unknown")
 CONTAINER_IMAGE_DIGEST = config("CONTAINER_IMAGE_DIGEST", default="unknown")
 
 # R2 config for model registry hot-swap
-R2_ACCOUNT_ID = config("R2_ACCOUNT_ID",   default="")
+R2_ACCOUNT_ID = config("R2_ACCOUNT_ID", default="")
 R2_ACCESS_KEY = config("R2_ACCESS_KEY_ID", default="")
-R2_SECRET     = config("R2_SECRET_KEY",   default="")
-R2_BUCKET     = config("R2_BUCKET",       default="")
+R2_SECRET = config("R2_SECRET_KEY", default="")
+R2_BUCKET = config("R2_BUCKET", default="")
 
 # In-memory model version state — updated by /switch
 _model_state: dict = {
-    "version":          "local",
+    "version": "local",
     "data_snapshot_id": "unknown",
-    "trained_at":       "unknown",
+    "trained_at": "unknown",
 }
 
 
@@ -119,14 +121,18 @@ async def lifespan(_app: FastAPI):
     if latest != "local":
         try:
             meta = _load_version_from_registry(latest)
-            _model_state.update({
-                "version":          meta.get("version", latest),
-                "data_snapshot_id": meta.get("data_snapshot_id", "unknown"),
-                "trained_at":       meta.get("trained_at", "unknown"),
-            })
+            _model_state.update(
+                {
+                    "version": meta.get("version", latest),
+                    "data_snapshot_id": meta.get("data_snapshot_id", "unknown"),
+                    "trained_at": meta.get("trained_at", "unknown"),
+                }
+            )
             log.info("Startup: loaded model version %s from registry", latest)
         except Exception as exc:
-            log.warning("Could not load registry version %s: %s — using local", latest, exc)
+            log.warning(
+                "Could not load registry version %s: %s — using local", latest, exc
+            )
     else:
         log.info("Startup: using locally trained model (no registry version found)")
 
@@ -139,50 +145,66 @@ app = FastAPI(lifespan=lifespan)
 
 class RecommendRequest(BaseModel):
     user_id: int = Field(..., description="MovieLens integer user ID")
-    n:       int = Field(20, ge=1, le=100, description="Number of recommendations")
-    model:   Literal["knn", "popularity"] = Field("knn", description="Model to use")
+    n: int = Field(20, ge=1, le=100, description="Number of recommendations")
+    model: Literal["knn", "popularity"] = Field("knn", description="Model to use")
 
 
 class RecommendResponse(BaseModel):
     # Original fields — unchanged
-    user_id:    int
+    user_id: int
     model_used: str
-    movie_ids:  list[int]
+    movie_ids: list[int]
     # Provenance fields — added for Task 5
-    request_id:             str
-    model_version:          str
-    data_snapshot_id:       str
-    pipeline_git_sha:       str
+    request_id: str
+    model_version: str
+    data_snapshot_id: str
+    pipeline_git_sha: str
 
-@app.get("/")
+
+@app.get(
+    "/",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
+)
 async def root():
     return {"message": "Hello World!"}
 
 
-@app.get("/ping")
+@app.get(
+    "/ping",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
+)
 async def ping():
     return {"message": "pong"}
 
 
-@app.head("/ping")
+@app.head(
+    "/ping",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
+)
 async def ping_head():
     return {"message": "pong"}
 
 
-@app.get("/version")
+@app.get(
+    "/version",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
+)
 async def version():
     """Return current model version and provenance metadata."""
 
     return {
-        "model_version":          _model_state["version"],
-        "data_snapshot_id":       _model_state["data_snapshot_id"],
-        "trained_at":             _model_state["trained_at"],
-        "pipeline_git_sha":       PIPELINE_GIT_SHA,
+        "model_version": _model_state["version"],
+        "data_snapshot_id": _model_state["data_snapshot_id"],
+        "trained_at": _model_state["trained_at"],
+        "pipeline_git_sha": PIPELINE_GIT_SHA,
         # container_image_digest kept internal - not exposed
     }
 
 
-@app.post("/switch")
+@app.post(
+    "/switch",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
+)
 async def switch_model(
     model: str = Query(..., description="Version to load, e.g. v1.2 or 'latest'"),
 ):
@@ -191,21 +213,27 @@ async def switch_model(
     target = _resolve_latest_version() if model == "latest" else model
     try:
         meta = _load_version_from_registry(target)
-        _model_state.update({
-            "version":          meta.get("version", target),
-            "data_snapshot_id": meta.get("data_snapshot_id", "unknown"),
-            "trained_at":       meta.get("trained_at", "unknown"),
-        })
+        _model_state.update(
+            {
+                "version": meta.get("version", target),
+                "data_snapshot_id": meta.get("data_snapshot_id", "unknown"),
+                "trained_at": meta.get("trained_at", "unknown"),
+            }
+        )
         return {
-            "status":        "switched",
+            "status": "switched",
             "model_version": _model_state["version"],
-            "trained_at":    _model_state["trained_at"],
+            "trained_at": _model_state["trained_at"],
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Switch failed: {exc}")
 
 
-@app.post("/recommend", response_model=RecommendResponse)
+@app.post(
+    "/recommend",
+    response_model=RecommendResponse,
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
+)
 async def recommend_movies(req: RecommendRequest):
     """Return top-n movie recommendations for a given user."""
 
@@ -226,17 +254,20 @@ async def recommend_movies(req: RecommendRequest):
 
     return {
         **result,
-        "request_id":             str(uuid.uuid4()),
-        "model_version":          _model_state["version"],
-        "data_snapshot_id":       _model_state["data_snapshot_id"],
-        "pipeline_git_sha":       PIPELINE_GIT_SHA,
+        "request_id": str(uuid.uuid4()),
+        "model_version": _model_state["version"],
+        "data_snapshot_id": _model_state["data_snapshot_id"],
+        "pipeline_git_sha": PIPELINE_GIT_SHA,
         # container_image_digest kept internal - not exposed
     }
 
 
-# Set up Prometheus instrumentation for the app
+# Set up Prometheus instrumentation for the app with credentials and rate limiting on the /metrics endpoint 1k/min
 Instrumentator().instrument(app).expose(
     app,
     endpoint="/metrics",
-    dependencies=[Depends(verify_metrics_credentials)],
+    dependencies=[
+        Depends(verify_metrics_credentials),
+        Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE)))),
+    ],
 )
