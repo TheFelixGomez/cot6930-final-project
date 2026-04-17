@@ -161,22 +161,34 @@ class RecommendResponse(BaseModel):
     pipeline_git_sha: str
 
 
-@app.get("/")
+@app.get(
+    "/",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
+)
 async def root():
     return {"message": "Hello World!"}
 
 
-@app.get("/ping")
+@app.get(
+    "/ping",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
+)
 async def ping():
     return {"message": "pong"}
 
 
-@app.head("/ping")
+@app.head(
+    "/ping",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
+)
 async def ping_head():
     return {"message": "pong"}
 
 
-@app.get("/version")
+@app.get(
+    "/version",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
+)
 async def version():
     """Return current model version and provenance metadata."""
 
@@ -189,7 +201,10 @@ async def version():
     }
 
 
-@app.post("/switch")
+@app.post(
+    "/switch",
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
+)
 async def switch_model(
     model: str = Query(..., description="Version to load, e.g. v1.2 or 'latest'"),
 ):
@@ -214,7 +229,11 @@ async def switch_model(
         raise HTTPException(status_code=500, detail=f"Switch failed: {exc}")
 
 
-@app.post("/recommend", response_model=RecommendResponse)
+@app.post(
+    "/recommend",
+    response_model=RecommendResponse,
+    dependencies=[Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
+)
 async def recommend_movies(req: RecommendRequest):
     """Return top-n movie recommendations for a given user."""
 
