@@ -13,6 +13,8 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, Field
+from fastapi_limiter.depends import RateLimiter
+from pyrate_limiter import Limiter, Rate, Duration
 
 from app.kafka.consumer import start_consumer, stop_consumer
 from app.recommender import recommend
@@ -234,9 +236,10 @@ async def recommend_movies(req: RecommendRequest):
     }
 
 
-# Set up Prometheus instrumentation for the app
+# Set up Prometheus instrumentation for the app with credentials and rate limiting on the /metrics endpoint 1k/min
 Instrumentator().instrument(app).expose(
     app,
     endpoint="/metrics",
-    dependencies=[Depends(verify_metrics_credentials)],
+    dependencies=[Depends(verify_metrics_credentials),
+                  Depends(RateLimiter(limiter=Limiter(Rate(1000, Duration.MINUTE))))],
 )
