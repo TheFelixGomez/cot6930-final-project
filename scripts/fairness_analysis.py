@@ -52,12 +52,12 @@ def main():
 
     print("\n=== EQUITY GAP ===")
     print("(from M3 subpopulation analysis)")
-    print(f"KNN HR@20 light users:   0.3667")
-    print(f"KNN HR@20 heavy users:   0.7906")
+    print("KNN HR@20 light users:   0.3667")
+    print("KNN HR@20 heavy users:   0.7906")
     print(f"Equity gap ratio:        {0.3667/0.7906:.4f}")
     print(f"Threshold (>=0.50):      {'PASS' if 0.3667/0.7906 >= 0.50 else 'FAIL'}")
-    print(f"Pop HR@20 light users:   0.2848")
-    print(f"Pop HR@20 heavy users:   0.5487")
+    print("Pop HR@20 light users:   0.2848")
+    print("Pop HR@20 heavy users:   0.5487")
     print(f"Equity gap ratio:        {0.2848/0.5487:.4f}")
     print(f"Threshold (>=0.50):      {'PASS' if 0.2848/0.5487 >= 0.50 else 'FAIL'}")
 
